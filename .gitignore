@@ -1,0 +1,13 @@
+.vscode
+*.vcxproj.user
+xcuserdata
+xcshareddata
+Libs/*
+*.xcframework
+*.framework
+archive/build/
+Pods/
+build/
+archive/v*.*.*
+.build/repositories/*
+.build/workspace-state.json

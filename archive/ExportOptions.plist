@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>compileBitcode</key>
+    <false/>
+    <key>destination</key>
+    <string>export</string>
+    <key>method</key>
+    <string>enterprise</string>
+    <key>provisioningProfiles</key>
+    <dict>
+        <key>com.ctyun.meeting</key>
+        <string>AccessoneMeetingProfileDist</string>
+        <key>com.ctyun.meeting.replaykit-extension</key>
+        <string>AccessoneMeetingReplaykitProfileDist</string>
+    </dict>
+    <key>signingCertificate</key>
+    <string>Apple Distribution</string>
+    <key>signingStyle</key>
+    <string>manual</string>
+    <key>stripSwiftSymbols</key>
+    <true/>
+    <key>teamID</key>
+    <string>V7H4E69YN3</string>
+    <key>thinning</key>
+    <string>&lt;none&gt;</string>
+    <key>items</key>
+    <array>
+        <dict>
+            <key>assets</key>
+            <array>
+                <dict>
+                    <key>kind</key>
+                    <string>software-package</string>
+                    <key>url</key>
+                    <string>https://meeting.tj4oss.ctyunxs.cn/Ios/ctrtc-meeting-app.ipa</string>
+                </dict>
+                <dict>
+                    <key>kind</key>
+                    <string>full-size-image</string>
+                    <key>needs-shine</key>
+                    <true/>
+                    <key>url</key>
+                    <string>https://meeting.tj4oss.ctyunxs.cn/Ios/AppIcon.png</string>
+                </dict>
+                <dict>
+                    <key>kind</key>
+                    <string>display-image</string>
+                    <key>needs-shine</key>
+                    <true/>
+                    <key>url</key>
+                    <string>https://meeting.tj4oss.ctyunxs.cn/Ios/AppIcon.png</string>
+                </dict>
+            </array>
+            <key>metadata</key>
+            <dict>
+                <key>title</key>
+                <string>ctrtc-meeting-app</string>
+                <key>bundle-version</key>
+                <string>1.5.0</string>
+                <key>kind</key>
+                <string>software</string>
+                <key>bundle-identifier</key>
+                <string>com.ctyun.meeting</string>
+            </dict>
+        </dict>
+    </array>
+</dict>
+</plist>
