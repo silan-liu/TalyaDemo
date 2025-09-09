@@ -86,7 +86,7 @@ class TalyaViewerViewController: UIViewController {
         
 //      canvasView.isHidden = false
       canvasView.resetScale()
-        self.currentPageIndex = 0
+        self.currentPageIndex = 1
         self.showViewer()
         self.loadPage(at: self.currentPageIndex)
         self.updateDocumentInfo()

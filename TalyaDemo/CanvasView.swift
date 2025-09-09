@@ -14,7 +14,6 @@ class CanvasView: UIView {
     didSet {
       // 当缩放改变时重绘
       updateContentScale()
-      setNeedsDisplay()
     }
   }
     
@@ -44,13 +43,16 @@ class CanvasView: UIView {
   
   // 🎯 核心方法：动态调整 contentScaleFactor
      private func updateContentScale() {
-         // 根据缩放级别动态调整绘制分辨率
-         let baseScale = UIScreen.main.scale
-       let targetScale = baseScale * min(scale, 3.0) // 最大3倍分辨率
+       // 根据缩放级别动态调整绘制分辨率
+       let baseScale = UIScreen.main.scale
+       let maxScale = UIScreen.main.scale * 2.5
+
+       let targetScale = min(maxScale, baseScale * scale)
          
          // 平滑过渡，避免频繁重建图层
-         if abs(contentScaleFactor - targetScale) > 0.1 {
+         if abs(contentScaleFactor - targetScale) > 0.3 {
              contentScaleFactor = targetScale
+             setNeedsDisplay()
          }
      }
     
@@ -149,7 +151,7 @@ class CanvasView: UIView {
         }
         
         var size = CGSizeZero
-        if shape.position.count == 2 {
+        if shape.dimensions.count == 2 {
             size = CGSizeMake(shape.dimensions[0], shape.dimensions[1])
         }
         
