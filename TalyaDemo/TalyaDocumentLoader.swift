@@ -166,9 +166,8 @@ class TalyaDocumentLoader {
                 }
                 
                 // Open ZIP archive
-                guard let archive = Archive(url: url, accessMode: .read) else {
-                    throw TalyaError.failedToOpenArchive
-                }
+              do {
+                let  archive = try Archive(url: url, accessMode: .read)
                 
                 // Load manifest
                 let manifest = try loadManifest(from: archive)
@@ -198,6 +197,9 @@ class TalyaDocumentLoader {
                 DispatchQueue.main.async {
                     completion(.success(document))
                 }
+              } catch {
+                throw TalyaError.failedToOpenArchive
+              }
                 
             } catch {
                 DispatchQueue.main.async {
@@ -258,6 +260,7 @@ class TalyaDocumentLoader {
     // MARK: - Load Page
     
     static func loadPage(at index: Int, from document: TalyaDocument, completion: @escaping (Result<(TalyaPage, TalyaDocument), Error>) -> Void) {
+            print("loadPage at:\(index)")
             DispatchQueue.global(qos: .userInitiated).async {
                 do {
                     guard index >= 0 && index < document.pageIndex.count else {

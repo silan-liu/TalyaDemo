@@ -54,6 +54,7 @@ class TalyaDocumentManager {
     }
     
     func loadPage(at index: Int, completion: @escaping (Result<TalyaPage, Error>) -> Void) {
+        print("loadPage at:\(index)")
         guard var document = currentDocument else {
             completion(.failure(TalyaError.noDocumentLoaded))
             return
@@ -78,9 +79,12 @@ class TalyaDocumentManager {
                 }
                 
                 print("begin extract:\(pageInfo.filename)")
+              
+                var i = 0
                 var pageData = Data()
                 _ = try document.zipArchive.extract(pageEntry) { data in
-                    print("extract data finished")
+                    print("extract data finished:\(i)")
+                    i += 1
                     pageData.append(data)
                 }
               
