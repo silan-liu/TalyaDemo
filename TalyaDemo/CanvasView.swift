@@ -28,7 +28,7 @@ class CanvasView: UIView {
   
   var resizedImage: UIImage?
   
-  var zoomScale: CGFloat = 1
+  var zoomScale: CGFloat = 0
 //  var zoomScale: CGFloat = 780.0 / 612.0
   
   private func calZoomScale() {
