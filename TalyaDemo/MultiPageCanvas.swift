@@ -17,7 +17,7 @@ extension UITableView {
               
               // 检查cell是否完全可见
               let cellRect = rectForRow(at: indexPath)
-            let visibleRect = self.frame.inset(by: contentInset)
+              let visibleRect = self.frame.inset(by: contentInset)
               
               // 完全可见判断
               if visibleRect.contains(cellRect) {
@@ -666,7 +666,13 @@ class MultiPageCanvasView: UIView {
       if let cell = tableView.cellForRow(at: indexPath) as? CanvasPageCell {
         cell.updateTalyaPage(talyaPage)
         
-        print("cell updateTalyaPage:\(index)")
+        print("update cell updateTalyaPage:\(index)")
+      } else {
+          print("updateTalyaPage:\(index)")
+          
+          // update page.Talyapage
+          let page = pages[index]
+          page.talyaPage = talyaPage
       }
     }
     
@@ -695,6 +701,9 @@ class MultiPageCanvasView: UIView {
         scrollView.maximumZoomScale = maximumZoomScale
         scrollView.bouncesZoom = true
         scrollView.backgroundColor = .systemGray6
+        scrollView.clipsToBounds = false
+        scrollView.showsVerticalScrollIndicator = false
+        scrollView.showsHorizontalScrollIndicator = false
         
         // 设置容器视图
         scrollView.addSubview(containerView)
@@ -707,7 +716,7 @@ class MultiPageCanvasView: UIView {
         tableView.separatorStyle = .none
         tableView.backgroundColor = .systemGray6
         tableView.showsVerticalScrollIndicator = false
-        tableView.isScrollEnabled = false // 禁用 TableView 自身的滚动
+//        tableView.isScrollEnabled = false // 禁用 TableView 自身的滚动
         
         // 注册 Cell
         tableView.register(CanvasPageCell.self, forCellReuseIdentifier: CanvasPageCell.identifier)
@@ -722,9 +731,9 @@ class MultiPageCanvasView: UIView {
         super.layoutSubviews()
         
         scrollView.frame = bounds
-//        containerView.frame = bounds
-//        tableView.frame = bounds
-        updateContentSize()
+        containerView.frame = bounds
+        tableView.frame = bounds
+//        updateContentSize()
     }
   
       func updatePages(_ pages: [CanvasPage]) {
@@ -736,18 +745,18 @@ class MultiPageCanvasView: UIView {
     
     private func updateContentSize() {
         // 计算 TableView 的总高度
-        var totalHeight: CGFloat = 0
-        for i in 0..<pages.count {
-            totalHeight += tableHeightForRow(at: i)
-        }
-        
-        // 设置容器和 TableView 的大小
-        containerView.frame = CGRect(x: 0, y: 0, width: bounds.width, height: totalHeight)
-        tableView.frame = containerView.bounds
-        
-        // 设置 ScrollView 的 contentSize
-        scrollView.contentSize = containerView.frame.size
-        
+//        var totalHeight: CGFloat = 0
+//        for i in 0..<pages.count {
+//            totalHeight += tableHeightForRow(at: i)
+//        }
+//        
+//        // 设置容器和 TableView 的大小
+//        containerView.frame = CGRect(x: 0, y: 0, width: bounds.width, height: totalHeight)
+//        tableView.frame = containerView.bounds
+//        
+//        // 设置 ScrollView 的 contentSize
+//        scrollView.contentSize = containerView.frame.size
+//        
         // 刷新 TableView
         tableView.reloadData()
     }
@@ -846,6 +855,7 @@ class MultiPageCanvasView: UIView {
     }
   
   func visibleCells() -> [UITableViewCell] {
+      return tableView.visibleCells
     guard let indexPaths = tableView.indexPathsForVisibleRows else { return [] }
       
       return indexPaths.compactMap { indexPath in
@@ -867,6 +877,7 @@ class MultiPageCanvasView: UIView {
     
     func visibleIndexPaths() -> [IndexPath] {
       guard let indexPaths = tableView.indexPathsForVisibleRows else { return [] }
+        return indexPaths
         
         return indexPaths.compactMap { indexPath in
             if let cell = tableView.cellForRow(at: indexPath) {
@@ -1013,6 +1024,22 @@ extension MultiPageCanvasView: UIScrollViewDelegate {
     
     func scrollViewDidEndZooming(_ scrollView: UIScrollView, with view: UIView?, atScale scale: CGFloat) {
         updateAllCellsScale()
+        
+        if (scrollView == self.scrollView) {
+            let endScaleContentSize = scrollView.contentSize;
+            let insetBottom = (endScaleContentSize.height - scrollView.bounds.size.height) / scale;
+            self.tableView.contentInset = UIEdgeInsets(top: 0, left: 0, bottom: insetBottom, right: 0);
+            let zeroSize = CGSizeMake(endScaleContentSize.width, 0);
+            let lastOffset = self.scrollView.contentOffset;
+            self.scrollView.contentSize = zeroSize;
+            
+            // 修复偏移
+            let newOffsetX = self.tableView.contentOffset.x;
+            let newOffsetY = self.tableView.contentOffset.y + lastOffset.y / scale;
+            let newOffset = CGPointMake(newOffsetX, newOffsetY);
+            
+            self.tableView.setContentOffset(newOffset, animated: false)
+        }
     }
   
       func scrollViewDidScroll(_ scrollView: UIScrollView) {
@@ -1215,7 +1242,7 @@ class MultiPageCanvasViewController: UIViewController {
   }
   
   private func displayPage(_ page: TalyaPage, _ index: Int) {
-      print("Displaying page with:")
+      print("Displaying page:\(index) with:")
       print("  Index: \(index)")
       print("  Strokes: \(page.strokes.count)")
       print("  Text elements: \(page.textElements.count)")

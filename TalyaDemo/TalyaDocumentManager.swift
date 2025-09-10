@@ -94,7 +94,7 @@ class TalyaDocumentManager {
                 
                 // Cache the page
                 self?.loadingQueue.async(flags: .barrier) {
-                    print("[TalyaDocumentManager] loadPage, at:\(index), cache page")
+                    print("[TalyaDocumentManager] loadPage, at:\(index), finished, cache page")
                     document.pages[index] = page
                 }
                 
