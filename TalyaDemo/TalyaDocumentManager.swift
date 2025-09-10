@@ -11,7 +11,7 @@ import ZIPFoundation
 // Alternative approach using a DocumentManager class
 class TalyaDocumentManager {
     var currentDocument: TalyaDocument?
-    private let loadingQueue = DispatchQueue(label: "com.talya.documentLoader", attributes: .concurrent)
+    private let loadingQueue = DispatchQueue(label: "com.talya.documentLoader")
     
     func loadDocument(from url: URL, completion: @escaping (Result<TalyaDocument, Error>) -> Void) {
         loadingQueue.async {
@@ -22,10 +22,7 @@ class TalyaDocumentManager {
                 
               do {
                 let archive = try Archive(url: url, accessMode: .read)
-//                guard let archive = Archive(url: url, accessMode: .read) else {
-//                  throw TalyaError.failedToOpenArchive
-//                }
-                
+
                 let manifest = try TalyaDocumentLoader.loadManifest(from: archive)
                 let searchIndex = try? TalyaDocumentLoader.loadSearchIndex(from: archive)
                 let pageIndex = try TalyaDocumentLoader.loadPageIndex(from: archive)
@@ -54,14 +51,16 @@ class TalyaDocumentManager {
     }
     
     func loadPage(at index: Int, completion: @escaping (Result<TalyaPage, Error>) -> Void) {
-        print("loadPage at:\(index)")
+        print("[TalyaDocumentManager] loadPage at:\(index)")
         guard var document = currentDocument else {
+            print("[TalyaDocumentManager] loadPage, at:\(index), noDocumentLoaded")
             completion(.failure(TalyaError.noDocumentLoaded))
             return
         }
         
         // Check cache first
         if let cachedPage = document.pages[index] {
+            print("[TalyaDocumentManager] loadPage, at:\(index), cache")
             completion(.success(cachedPage))
             return
         }
@@ -69,31 +68,33 @@ class TalyaDocumentManager {
         loadingQueue.async { [weak self] in
             do {
                 guard index >= 0 && index < document.pageIndex.count else {
+                    print("[TalyaDocumentManager] loadPage, at:\(index), invalidPageIndex")
                     throw TalyaError.invalidPageIndex
                 }
                 
                 let pageInfo = document.pageIndex[index]
                 
                 guard let pageEntry = document.zipArchive[pageInfo.filename] else {
+                    print("[TalyaDocumentManager] loadPage, at:\(index), pageNotFound")
                     throw TalyaError.pageNotFound(pageInfo.filename)
                 }
                 
-                print("begin extract:\(pageInfo.filename)")
+                print("[TalyaDocumentManager] begin extract:\(pageInfo.filename), at:\(index)")
               
                 var i = 0
                 var pageData = Data()
                 _ = try document.zipArchive.extract(pageEntry) { data in
-                    print("extract data finished:\(i)")
                     i += 1
                     pageData.append(data)
                 }
               
-                print("do next, loadPageBundle from data")
+                print("[TalyaDocumentManager] do next, loadPageBundle from data, at:\(index)")
                 
                 let page = try TalyaDocumentLoader.loadPageBundle(from: pageData)
                 
                 // Cache the page
                 self?.loadingQueue.async(flags: .barrier) {
+                    print("[TalyaDocumentManager] loadPage, at:\(index), cache page")
                     document.pages[index] = page
                 }
                 

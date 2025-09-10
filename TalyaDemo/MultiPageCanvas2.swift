@@ -27,7 +27,7 @@ class CanvasPageCell2: UITableViewCell {
     
     private let loadButton = UIButton(type: .system)
   
-  var panGesture: UIPanGestureRecognizer?
+    var panGesture: UIPanGestureRecognizer?
   
 
     // 当前页面数据

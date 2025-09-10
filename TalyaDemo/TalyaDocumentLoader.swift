@@ -158,6 +158,7 @@ class TalyaDocumentLoader {
     // MARK: - Load Document
     
     static func loadTalyaDocument(from url: URL, completion: @escaping (Result<TalyaDocument, Error>) -> Void) {
+        
         DispatchQueue.global(qos: .userInitiated).async {
             do {
                 // Verify file extension

@@ -20,7 +20,6 @@ extension UITableView {
             let visibleRect = self.frame.inset(by: contentInset)
               
               // 完全可见判断
-            print("visibleRect:\(visibleRect), cellRect:\(cellRect),  frame:\(self.frame)")
               if visibleRect.contains(cellRect) {
                   return cell
               }
@@ -279,6 +278,31 @@ class CanvasPageCell: UITableViewCell {
     }
   }
     
+    // MARK: - 复用准备
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        
+        // 清理旧的绘制内容
+        canvasView.layer.sublayers?.forEach { layer in
+            if layer != drawingLayer {
+                layer.removeFromSuperlayer()
+            }
+        }
+        
+        // 重置状态
+        drawingLayer.path = nil
+        currentPath = nil
+        eraserIndicatorView.isHidden = true
+        
+        // 清除手势
+        removeGestures()
+        
+        print("Cell 准备复用:\(page?.pageNumber ?? -1)")
+
+        // 重置页面数据
+        page = nil
+    }
+    
     // MARK: - Layout
     
     override func layoutSubviews() {
@@ -469,36 +493,47 @@ class CanvasPageCell: UITableViewCell {
     
     private func updatePageContent() {
         guard let page = page else { return }
-      
-        canvasView.page = self.page?.talyaPage
-        canvasView.setNeedsDisplay()
         
-        // 设置背景色
-        canvasView.backgroundColor = page.backgroundColor
+        // 使用 CATransaction 批量更新，提高性能
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
         
-        // 设置页码
-        pageNumberLabel.text = "Page \(page.pageNumber + 1)"
-        
-        // 清除旧的绘制内容
+        // 清除旧内容
         canvasView.layer.sublayers?.forEach { layer in
-            if layer != drawingLayer {
+            if layer != drawingLayer && layer != eraserLayer {
                 layer.removeFromSuperlayer()
             }
         }
         
-        // 加载已有的绘制内容
+        // 只在需要时加载 TalyaPage
+        if let talyaPage = page.talyaPage {
+            canvasView.page = talyaPage
+            loadButton.isHidden = true
+        } else {
+            canvasView.page = nil
+            loadButton.isHidden = false
+        }
+        
+        // 恢复绘制内容
         page.drawings.forEach { layer in
             canvasView.layer.insertSublayer(layer, below: drawingLayer)
         }
         
-        // 如果有图片内容
-        if let image = page.content {
-            let imageView = UIImageView(image: image)
-            imageView.contentMode = .scaleAspectFit
-            imageView.frame = canvasView.bounds
-            imageView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-            canvasView.insertSubview(imageView, at: 0)
-        }
+        CATransaction.commit()
+        
+        // 设置其他属性
+        canvasView.backgroundColor = page.backgroundColor
+        pageNumberLabel.text = "Page \(page.pageNumber + 1)"
+        
+        canvasView.setNeedsDisplay()
+    }
+    
+    func showLoadButton() {
+        loadButton.isHidden = false
+    }
+    
+    func hideLoadButton() {
+        loadButton.isHidden = true
     }
     
     // MARK: - Public Methods
@@ -549,6 +584,10 @@ class MultiPageCanvasView: UIView {
     private let containerView = UIView()
     private let tableView = UITableView()
     private var pages: [CanvasPage] = []
+    
+    // 预加载管理
+    private var loadingPages = Set<Int>()
+    private let preloadOffset = 2 // 预加载前后2页
     
     // 当前工具
     var currentTool: DrawingTool = .pen
@@ -639,13 +678,11 @@ class MultiPageCanvasView: UIView {
     override init(frame: CGRect) {
         super.init(frame: frame)
         setupViews()
-        createInitialPages()
     }
     
     required init?(coder: NSCoder) {
         super.init(coder: coder)
         setupViews()
-        createInitialPages()
     }
     
     private func setupViews() {
@@ -685,13 +722,17 @@ class MultiPageCanvasView: UIView {
         super.layoutSubviews()
         
         scrollView.frame = bounds
+//        containerView.frame = bounds
+//        tableView.frame = bounds
         updateContentSize()
     }
   
-  func updatePages(_ pages: [CanvasPage]) {
-    self.pages = pages
-    updateContentSize()
-  }
+      func updatePages(_ pages: [CanvasPage]) {
+        self.pages = pages
+        updateContentSize()
+          
+        self.preloadPagesIfNeeded()
+      }
     
     private func updateContentSize() {
         // 计算 TableView 的总高度
@@ -712,10 +753,14 @@ class MultiPageCanvasView: UIView {
     }
     
     private func tableHeightForRow(at index: Int) -> CGFloat {
-        let pageSize = pages[index].size
-        let pageWidth = bounds.width - 40
-        let pageHeight = pageWidth * (pageSize.height / pageSize.width)
-        return pageHeight + 40 // 页面高度 + 上下边距 + 页码空间
+        if bounds.width > 0 {
+            let pageSize = pages[index].size
+            let pageWidth = bounds.width - 40
+            let pageHeight = pageWidth * (pageSize.height / pageSize.width)
+            return pageHeight + 40 // 页面高度 + 上下边距 + 页码空间
+        }
+       
+        return 0
     }
     
     private func createInitialPages() {
@@ -812,8 +857,6 @@ class MultiPageCanvasView: UIView {
         // 转换cell的frame到tableView坐标系
         let cellFrame = cell.convert(cell.bounds, to: self)
         
-        print("visibleRect:\(visibleRect), cellRect:\(cellFrame),  frame:\(self.frame)")
-
         // 检查是否在可见区域内
         if visibleRect.intersects(cellFrame) {
               return cell
@@ -821,6 +864,27 @@ class MultiPageCanvasView: UIView {
           return nil
       }
   }
+    
+    func visibleIndexPaths() -> [IndexPath] {
+      guard let indexPaths = tableView.indexPathsForVisibleRows else { return [] }
+        
+        return indexPaths.compactMap { indexPath in
+            if let cell = tableView.cellForRow(at: indexPath) {
+                // 检查cell是否完全可见
+              let visibleRect = self.frame
+              
+              // 转换cell的frame到tableView坐标系
+              let cellFrame = cell.convert(cell.bounds, to: self)
+              
+              // 检查是否在可见区域内
+              if visibleRect.intersects(cellFrame) {
+                    return indexPath
+              }
+            }
+          
+            return nil
+        }
+    }
     
     // MARK: - Page Management
     
@@ -855,9 +919,7 @@ class MultiPageCanvasView: UIView {
     
     func scrollToPage(_ index: Int, animated: Bool = true) {
         guard index < pages.count else { return }
-      
-      loadPageAtIndex(index: index)
-        
+              
         var yOffset: CGFloat = 0
         for i in 0..<index {
             yOffset += tableHeightForRow(at: i)
@@ -946,17 +1008,44 @@ extension MultiPageCanvasView: UIScrollViewDelegate {
         let offsetY = max((scrollView.bounds.height - scrollView.contentSize.height) / 2, 0)
         scrollView.contentInset = UIEdgeInsets(top: offsetY, left: offsetX, bottom: offsetY, right: offsetX)
       
+//        updateAllCellsScale()
+    }
+    
+    func scrollViewDidEndZooming(_ scrollView: UIScrollView, with view: UIView?, atScale scale: CGFloat) {
         updateAllCellsScale()
     }
   
-  func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
-    let index = self.currentPageIndex
-    self.loadPageAtIndex(index: index)
-  }
-  
-  func scrollViewDidScroll(_ scrollView: UIScrollView) {
+      func scrollViewDidScroll(_ scrollView: UIScrollView) {
+          if pages.count == 0 {
+              return
+          }
+          
+          preloadPagesIfNeeded()
+      }
     
-  }
+    private func preloadPagesIfNeeded() {
+        let visibleIndexPaths = visibleIndexPaths()
+        
+        // 计算需要预加载的范围
+        let minRow = (visibleIndexPaths.min { $0.row < $1.row }?.row ?? 0) - preloadOffset
+        let maxRow = (visibleIndexPaths.max { $0.row < $1.row }?.row ?? 0) + preloadOffset
+        
+        let preloadRange = max(0, minRow)...min(pages.count - 1, maxRow)
+        
+        print("preloadRange:\(preloadRange)")
+        
+        for index in preloadRange {
+            if pages[index].talyaPage == nil && !loadingPages.contains(index) {
+                loadingPages.insert(index)
+                
+                // 异步加载页面
+                delegate?.multiPageCanvasView(self, loadPageAtIndex: index)
+            }
+        }
+        
+        // 清理不需要的页面（可选，用于内存优化）
+//        cleanupDistantPages(visibleRange: preloadRange)
+    }
   
   func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
 //    let cells = visibleCells()
@@ -972,11 +1061,29 @@ extension MultiPageCanvasView: UITableViewDataSource {
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        print("cellForRowAt:\(indexPath.row)")
         let cell = tableView.dequeueReusableCell(withIdentifier: CanvasPageCell.identifier, for: indexPath) as! CanvasPageCell
         
+        // ✅ 重置 cell 状态（重要！）
+        cell.prepareForReuse()
+        
+        // 配置 cell
         cell.page = pages[indexPath.row]
         cell.delegate = self
         cell.scale = scrollView.zoomScale
+        cell.currentTool = currentTool
+        cell.penColor = penColor
+        cell.penWidth = penWidth
+        cell.eraserWidth = eraserWidth
+        
+        // 检查是否需要加载页面内容
+//          if pages[indexPath.row].talyaPage == nil {
+//              // 显示加载按钮
+//              cell.showLoadButton()
+//          } else {
+//              // 显示内容
+//              cell.hideLoadButton()
+//          }
         
         return cell
     }
@@ -1072,29 +1179,28 @@ class MultiPageCanvasViewController: UIViewController {
   private func loadPage(at index: Int) {
       guard let document = documentManager.currentDocument,
                 index >= 0,
-                index < document.pageCount else { return }
+            index < document.pageCount else {
+          print("documentManager.currentDocument is nil")
+          return
+      }
 
-          documentManager.loadPage(at: index) { [weak self]  result in
-              switch result {
-              case .success(let page):
-                  self?.displayPage(page, index)
+      documentManager.loadPage(at: index) { [weak self]  result in
+          switch result {
+          case .success(let page):
+              self?.displayPage(page, index)
 
-              case .failure(let error):
-                  self?.showError(error)
-              }
+          case .failure(let error):
+              self?.showError(error)
           }
       }
+  }
 
   private func documentLoaded(_ document: TalyaDocument) {
       print("Document loaded: \(document.manifest.title)")
       print("Pages: \(document.pageCount)")
       print("Search enabled: \(document.searchIndex != nil)")
       
-    self.createPages(document)
-
-//    for i in 0..<3 {
-      self.loadPage(at: 0)
-//    }
+        self.createPages(document)
   }
   
   private func createPages(_ document: TalyaDocument) {
@@ -1451,7 +1557,8 @@ extension MultiPageCanvasViewController: MultiPageCanvasViewDelegate {
         print("Removed page at index \(index)")
     }
   
-  func multiPageCanvasView(_ canvasView: MultiPageCanvasView, loadPageAtIndex: Int) {
-    loadPage(at: loadPageAtIndex)
-  }
+    func multiPageCanvasView(_ canvasView: MultiPageCanvasView, loadPageAtIndex: Int) {
+        print("multiPageCanvasView loadPageAtIndex:\(loadPageAtIndex)")
+        loadPage(at: loadPageAtIndex)
+    }
 }
