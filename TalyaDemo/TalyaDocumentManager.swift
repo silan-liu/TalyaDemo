@@ -20,9 +20,11 @@ class TalyaDocumentManager {
                     throw TalyaError.invalidFileType
                 }
                 
-                guard let archive = Archive(url: url, accessMode: .read) else {
-                    throw TalyaError.failedToOpenArchive
-                }
+              do {
+                let archive = try Archive(url: url, accessMode: .read)
+//                guard let archive = Archive(url: url, accessMode: .read) else {
+//                  throw TalyaError.failedToOpenArchive
+//                }
                 
                 let manifest = try TalyaDocumentLoader.loadManifest(from: archive)
                 let searchIndex = try? TalyaDocumentLoader.loadSearchIndex(from: archive)
@@ -40,7 +42,9 @@ class TalyaDocumentManager {
                 DispatchQueue.main.async {
                     completion(.success(document))
                 }
-                
+              } catch {
+                throw TalyaError.failedToOpenArchive
+              }
             } catch {
                 DispatchQueue.main.async {
                     completion(.failure(error))
@@ -73,10 +77,14 @@ class TalyaDocumentManager {
                     throw TalyaError.pageNotFound(pageInfo.filename)
                 }
                 
+                print("begin extract:\(pageInfo.filename)")
                 var pageData = Data()
                 _ = try document.zipArchive.extract(pageEntry) { data in
+                    print("extract data finished")
                     pageData.append(data)
                 }
+              
+                print("do next, loadPageBundle from data")
                 
                 let page = try TalyaDocumentLoader.loadPageBundle(from: pageData)
                 
