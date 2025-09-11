@@ -339,9 +339,31 @@ class CanvasPageCell: UITableViewCell {
           guard isEditingEnabled else { return }
           
           let location = gesture.location(in: canvasView)
-          
+                     
+          handleDrawingGesture(gesture, at: location)
+      }
+  
+    private var isDrawing = false
+
+    private func shouldBeginDrawing(velocity: CGPoint, state: UIGestureRecognizer.State) -> Bool {
+            if state == .began {
+                // 根据初始速度判断意图
+                let speed = sqrt(velocity.x * velocity.x + velocity.y * velocity.y)
+                
+                // 速度较小时认为是绘制
+                return speed < 500
+            }
+      
+            return isDrawing
+        }
+  
+  private func handleDrawingGesture(_ gesture: UIPanGestureRecognizer, at location: CGPoint) {
           switch gesture.state {
           case .began:
+              isDrawing = true
+              // 通知父视图禁用滚动
+              delegate?.canvasPageCellDidBeginDrawing(self)
+              
               if currentTool == .pen {
                   startDrawing(at: location)
               } else {
@@ -356,6 +378,10 @@ class CanvasPageCell: UITableViewCell {
               }
               
           case .ended, .cancelled:
+              isDrawing = false
+              // 恢复滚动
+              delegate?.canvasPageCellDidEndDrawing(self)
+              
               if currentTool == .pen {
                   finishDrawing()
               } else {
@@ -580,7 +606,7 @@ class MultiPageCanvasView: UIView {
     // MARK: - Properties
     
     // 使用 ScrollView 包装 TableView 实现缩放
-    private let scrollView = UIScrollView()
+  private var scrollView: UIScrollView!
     private let containerView = UIView()
     private let tableView = UITableView()
     private var pages: [CanvasPage] = []
@@ -678,7 +704,9 @@ class MultiPageCanvasView: UIView {
     
     // 代理
     weak var delegate: MultiPageCanvasViewDelegate?
-    
+  private var pinchGesture: UIPinchGestureRecognizer!
+  private var isZooming = false
+
     // MARK: - Initialization
     
     override init(frame: CGRect) {
@@ -693,6 +721,8 @@ class MultiPageCanvasView: UIView {
     
     private func setupViews() {
         backgroundColor = .systemGray6
+      
+      scrollView = UIScrollView()
         
         // 设置 ScrollView
         addSubview(scrollView)
@@ -703,8 +733,9 @@ class MultiPageCanvasView: UIView {
         scrollView.backgroundColor = .systemGray6
         scrollView.clipsToBounds = false
         scrollView.showsVerticalScrollIndicator = false
-        scrollView.showsHorizontalScrollIndicator = false
-        
+        scrollView.showsHorizontalScrollIndicator = true
+        scrollView.isScrollEnabled = true
+              
         // 设置容器视图
         scrollView.addSubview(containerView)
         containerView.backgroundColor = .systemGray6
@@ -716,8 +747,9 @@ class MultiPageCanvasView: UIView {
         tableView.separatorStyle = .none
         tableView.backgroundColor = .systemGray6
         tableView.showsVerticalScrollIndicator = false
-//        tableView.isScrollEnabled = false // 禁用 TableView 自身的滚动
-        
+        tableView.isScrollEnabled = true
+        tableView.clipsToBounds = false
+
         // 注册 Cell
         tableView.register(CanvasPageCell.self, forCellReuseIdentifier: CanvasPageCell.identifier)
         
@@ -725,15 +757,73 @@ class MultiPageCanvasView: UIView {
         let doubleTapGesture = UITapGestureRecognizer(target: self, action: #selector(handleDoubleTap(_:)))
         doubleTapGesture.numberOfTapsRequired = 2
         scrollView.addGestureRecognizer(doubleTapGesture)
+      
+//      setupGestureRecognizers()
+      
+//      configureScrollViewGestures()
+      
+//      pinchGesture = UIPinchGestureRecognizer(target: self, action: #selector(handlePinch(_:)))
+//      pinchGesture.delegate = self
+//      scrollView.addGestureRecognizer(pinchGesture)
     }
+  
+
+  var currentScale = 1.0
+  
+  @objc private func handlePinch(_ gesture: UIPinchGestureRecognizer) {
+          switch gesture.state {
+          case .began:
+              // 开始缩放时停止滚动
+              scrollView.setContentOffset(scrollView.contentOffset, animated: false)
+//              isScrolling = false
+              
+          case .changed:
+              // 应用缩放
+              scrollView.zoomScale = scrollView.zoomScale * gesture.scale
+              gesture.scale = 1.0
+              
+          case .ended, .cancelled:
+              // 缩放结束
+              updateAllCellsScale()
+              
+          default:
+              break
+          }
+      }
+
+
+  
+  private func configureScrollViewGestures() {
+        // 配置 ScrollView 的手势识别
+        scrollView.panGestureRecognizer.requiresExclusiveTouchType = false
+        scrollView.pinchGestureRecognizer?.requiresExclusiveTouchType = false
+        
+        // iOS 13.4+
+        if #available(iOS 13.4, *) {
+            scrollView.panGestureRecognizer.allowedScrollTypesMask = .continuous
+        }
+        
+        // 设置延迟内容触摸
+        scrollView.delaysContentTouches = false
+        scrollView.canCancelContentTouches = true
+    }
+  
+  private func setupGestureRecognizers() {
+    scrollView.panGestureRecognizer.maximumNumberOfTouches = 1  // 单指滚动
+
+         // 让 scrollView 的手势优先处理缩放
+         scrollView.panGestureRecognizer.require(toFail: scrollView.pinchGestureRecognizer!)
+         
+//         // 让 tableView 的滚动手势与 scrollView 协同
+//         tableView.panGestureRecognizer.require(toFail: scrollView.panGestureRecognizer)
+     }
     
     override func layoutSubviews() {
         super.layoutSubviews()
         
         scrollView.frame = bounds
-        containerView.frame = bounds
+//        containerView.frame = bounds
         tableView.frame = bounds
-//        updateContentSize()
     }
   
       func updatePages(_ pages: [CanvasPage]) {
@@ -745,17 +835,17 @@ class MultiPageCanvasView: UIView {
     
     private func updateContentSize() {
         // 计算 TableView 的总高度
-//        var totalHeight: CGFloat = 0
-//        for i in 0..<pages.count {
-//            totalHeight += tableHeightForRow(at: i)
-//        }
-//        
-//        // 设置容器和 TableView 的大小
-//        containerView.frame = CGRect(x: 0, y: 0, width: bounds.width, height: totalHeight)
+        var totalHeight: CGFloat = 0
+        for i in 0..<pages.count {
+            totalHeight += tableHeightForRow(at: i)
+        }
+        
+        // 设置容器和 TableView 的大小
+        containerView.frame = CGRect(x: 0, y: 0, width: bounds.width, height: totalHeight)
 //        tableView.frame = containerView.bounds
-//        
-//        // 设置 ScrollView 的 contentSize
-//        scrollView.contentSize = containerView.frame.size
+        
+        // 设置 ScrollView 的 contentSize
+        scrollView.contentSize = containerView.frame.size
 //        
         // 刷新 TableView
         tableView.reloadData()
@@ -1006,12 +1096,30 @@ class MultiPageCanvasView: UIView {
     }
 }
 
+
+extension MultiPageCanvasView: UIGestureRecognizerDelegate {
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
+                          shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+        // 简单粗暴：允许所有 scrollView 的手势同时识别
+      if gestureRecognizer == pinchGesture {
+            return true
+        }
+        return false
+    }
+}
+
 // MARK: - UIScrollViewDelegate
 extension MultiPageCanvasView: UIScrollViewDelegate {
     
-    func viewForZooming(in scrollView: UIScrollView) -> UIView? {
-        return containerView
-    }
+      func viewForZooming(in scrollView: UIScrollView) -> UIView? {
+              if scrollView == self.scrollView {
+                  return containerView
+              }
+              return nil
+          }
+    
+  func scrollViewWillBeginZooming(_ scrollView: UIScrollView, with view: UIView?) {
+  }
     
     func scrollViewDidZoom(_ scrollView: UIScrollView) {
         // 缩放时保持内容居中
@@ -1058,9 +1166,7 @@ extension MultiPageCanvasView: UIScrollViewDelegate {
         let maxRow = (visibleIndexPaths.max { $0.row < $1.row }?.row ?? 0) + preloadOffset
         
         let preloadRange = max(0, minRow)...min(pages.count - 1, maxRow)
-        
-        print("preloadRange:\(preloadRange)")
-        
+                
         for index in preloadRange {
             if pages[index].talyaPage == nil && !loadingPages.contains(index) {
                 loadingPages.insert(index)
@@ -1133,14 +1239,20 @@ extension MultiPageCanvasView: CanvasPageCellDelegate {
     
     func canvasPageCellDidBeginDrawing(_ cell: CanvasPageCell) {
         // 绘制时禁用滚动和缩放
-        scrollView.isScrollEnabled = false
-        scrollView.pinchGestureRecognizer?.isEnabled = false
+      scrollView.isScrollEnabled = false
+      scrollView.pinchGestureRecognizer?.isEnabled = false
+      
+//      tableView.isScrollEnabled = false
+//      tableView.pinchGestureRecognizer?.isEnabled = false
     }
     
     func canvasPageCellDidEndDrawing(_ cell: CanvasPageCell) {
         // 恢复滚动和缩放
-        scrollView.isScrollEnabled = true
-        scrollView.pinchGestureRecognizer?.isEnabled = true
+      scrollView.isScrollEnabled = true
+      scrollView.pinchGestureRecognizer?.isEnabled = true
+      
+//      tableView.isScrollEnabled = true
+//      tableView.pinchGestureRecognizer?.isEnabled = true
     }
   
   func loadPageAtIndex(index: Int) {
@@ -1252,8 +1364,8 @@ class MultiPageCanvasViewController: UIViewController {
   }
     
     private func setupViews() {
-        view.backgroundColor = .systemBackground
-        title = "Multi-Page Canvas"
+      view.backgroundColor = .white
+        title = "Talya Viewer"
         
         // 添加画布
         view.addSubview(canvasView)
@@ -1293,6 +1405,13 @@ class MultiPageCanvasViewController: UIViewController {
   }
     
     private func setupNavigationBar() {
+      let appearance = UINavigationBarAppearance()
+              appearance.configureWithOpaqueBackground()
+              appearance.backgroundColor = .white
+              
+              navigationController?.navigationBar.standardAppearance = appearance
+              navigationController?.navigationBar.scrollEdgeAppearance = appearance
+      
         // 缩放控制
         let zoomInButton = UIBarButtonItem(
             image: UIImage(systemName: "plus.magnifyingglass"),

@@ -583,13 +583,11 @@ class MultiPageCanvasView2: UIView {
     override init(frame: CGRect) {
         super.init(frame: frame)
         setupViews()
-        createInitialPages()
     }
     
     required init?(coder: NSCoder) {
         super.init(coder: coder)
         setupViews()
-        createInitialPages()
     }
     
     private func setupViews() {
@@ -621,8 +619,29 @@ class MultiPageCanvasView2: UIView {
       private func setupZoomGesture() {
           pinchGesture = UIPinchGestureRecognizer(target: self, action: #selector(handlePinch(_:)))
           tableView.addGestureRecognizer(pinchGesture)
+        
+        // 拖动手势（平移）
+               let panGesture = UIPanGestureRecognizer(
+                   target: self,
+                   action: #selector(handlePan(_:))
+               )
+               addGestureRecognizer(panGesture)
       }
       
+  private var currentTransform = CGAffineTransform.identity
+
+  @objc private func handlePan(_ gesture: UIPanGestureRecognizer) {
+          let translation = gesture.translation(in: self)
+          currentTransform = currentTransform.translatedBy(
+              x: translation.x,
+              y: translation.y
+          )
+    tableView.transform = currentTransform
+
+          gesture.setTranslation(.zero, in: self)
+//          setNeedsDisplay()
+      }
+  
       @objc private func handlePinch(_ gesture: UIPinchGestureRecognizer) {
           switch gesture.state {
           case .began, .changed:
@@ -630,15 +649,23 @@ class MultiPageCanvasView2: UIView {
               let clampedScale = max(minimumZoomScale, min(maximumZoomScale, newScale))
               
               // 只更新可见的 cells
-              updateVisibleCellsScale(clampedScale)
-              
-              if gesture.state == .changed {
-                  gesture.scale = 1.0
-              }
+//              updateVisibleCellsScale(clampedScale)
+            currentTransform = currentTransform.scaledBy(
+                            x: gesture.scale,
+                            y: gesture.scale
+                        )
+                        gesture.scale = 1.0
+            
+            tableView.transform = currentTransform
+//              if gesture.state == .changed {
+//                  gesture.scale = 1.0
+//              }
               
           case .ended:
               currentScale = currentScale * gesture.scale
               currentScale = max(minimumZoomScale, min(maximumZoomScale, currentScale))
+            
+//            tableView.transform = CGAffineTransform(scaleX: currentScale, y: currentScale)
               
               // 刷新所有可见 cells
               tableView.visibleCells.forEach { cell in
@@ -655,13 +682,18 @@ class MultiPageCanvasView2: UIView {
     override func layoutSubviews() {
         super.layoutSubviews()
         
-        scrollView.frame = bounds
-        updateContentSize()
+//        scrollView.frame = bounds
+//        containerView.frame = bounds
+        tableView.frame = bounds
+      
+//        updateContentSize()
     }
   
   func updatePages(_ pages: [CanvasPage]) {
     self.pages = pages
     updateContentSize()
+    
+    self.preloadPagesIfNeeded()
   }
     
     private func updateContentSize() {
@@ -679,7 +711,7 @@ class MultiPageCanvasView2: UIView {
 //        scrollView.contentSize = containerView.frame.size
 //        
 //        // 刷新 TableView
-//        tableView.reloadData()
+        tableView.reloadData()
     }
     
     private func tableHeightForRow(at index: Int) -> CGFloat {
@@ -900,6 +932,9 @@ class MultiPageCanvasView2: UIView {
     }
   
   func scrollViewDidScroll(_ scrollView: UIScrollView) {
+    if pages.count == 0 {
+        return
+    }
           preloadPagesIfNeeded()
 //          updateVisibleCellsScale(currentScale)
   }

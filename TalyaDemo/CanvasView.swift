@@ -39,6 +39,7 @@ class CanvasView: UIView {
       
       let targetSize = self.bounds.size
       if targetSize.width == 0 || targetSize.height == 0 {
+        print("CanvasView calZoomScale targetSize:\(targetSize)")
         return
       }
       
@@ -55,7 +56,7 @@ class CanvasView: UIView {
      private func updateContentScale() {
        // 根据缩放级别动态调整绘制分辨率
        let baseScale = UIScreen.main.scale
-       let maxScale = UIScreen.main.scale * 2.2
+       let maxScale = UIScreen.main.scale * 3
 
        let targetScale = min(maxScale, baseScale * scale)
          
@@ -72,7 +73,11 @@ class CanvasView: UIView {
         guard let page = page,
               let context = UIGraphicsGetCurrentContext() else { return }
         
-      print("canvasView draw zoomscale:\(zoomScale)")
+      print("canvasView draw zoomscale:\(zoomScale), size:\(bounds)")
+      
+      if zoomScale == 0 {
+        calZoomScale()
+      }
       
         // Apply scale
 //        context.scaleBy(x: scale, y: scale)
@@ -131,7 +136,7 @@ class CanvasView: UIView {
         }
       }
       
-      print("processImage finished:\(self.resizeImages.count)")
+      print("processImage finished, imagesCount:\(self.resizeImages.count)")
       
       DispatchQueue.main.async {
         self.setNeedsDisplay()
