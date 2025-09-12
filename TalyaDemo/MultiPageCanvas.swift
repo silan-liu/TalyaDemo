@@ -583,14 +583,14 @@ class CanvasPageCell: UITableViewCell {
 // MARK: - Gesture Recognizer Methods
 extension CanvasPageCell {
     
-    override func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
-                                   shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
-        // 绘制手势优先
-        if gestureRecognizer is UIPanGestureRecognizer {
-            return false
-        }
-        return true
-    }
+//    override func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
+//                                   shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+//        // 绘制手势优先
+//        if gestureRecognizer is UIPanGestureRecognizer {
+//            return false
+//        }
+//        return true
+//    }
 }
 
 // MARK: - Cell Delegate
@@ -732,9 +732,9 @@ class MultiPageCanvasView: UIView {
         scrollView.bouncesZoom = true
         scrollView.backgroundColor = .systemGray6
         scrollView.clipsToBounds = false
-        scrollView.showsVerticalScrollIndicator = false
+        scrollView.showsVerticalScrollIndicator = true
         scrollView.showsHorizontalScrollIndicator = true
-        scrollView.isScrollEnabled = true
+      scrollView.isScrollEnabled = true
               
         // 设置容器视图
         scrollView.addSubview(containerView)
@@ -747,7 +747,7 @@ class MultiPageCanvasView: UIView {
         tableView.separatorStyle = .none
         tableView.backgroundColor = .systemGray6
         tableView.showsVerticalScrollIndicator = false
-        tableView.isScrollEnabled = true
+      tableView.isScrollEnabled = true
         tableView.clipsToBounds = false
 
         // 注册 Cell
@@ -757,6 +757,12 @@ class MultiPageCanvasView: UIView {
         let doubleTapGesture = UITapGestureRecognizer(target: self, action: #selector(handleDoubleTap(_:)))
         doubleTapGesture.numberOfTapsRequired = 2
         scrollView.addGestureRecognizer(doubleTapGesture)
+      
+        // 提高缩放手势的优先级，滚动时也能响应缩放
+//         if let pinchGesture = scrollView.pinchGestureRecognizer {
+//             tableView.panGestureRecognizer.require(toFail: pinchGesture)
+//         }
+      
       
 //      setupGestureRecognizers()
       
@@ -845,7 +851,7 @@ class MultiPageCanvasView: UIView {
 //        tableView.frame = containerView.bounds
         
         // 设置 ScrollView 的 contentSize
-        scrollView.contentSize = containerView.frame.size
+//        scrollView.contentSize = containerView.frame.size
 //        
         // 刷新 TableView
         tableView.reloadData()
@@ -1119,6 +1125,10 @@ extension MultiPageCanvasView: UIScrollViewDelegate {
           }
     
   func scrollViewWillBeginZooming(_ scrollView: UIScrollView, with view: UIView?) {
+    print("scrollViewWillBeginZooming:\(scrollView)")
+    if scrollView == self.scrollView {
+//      self.tableView.contentOffset = self.tableView.contentOffset
+    }
   }
     
     func scrollViewDidZoom(_ scrollView: UIScrollView) {

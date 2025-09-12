@@ -14,7 +14,8 @@ class HomeViewController: UIViewController {
   }
   
   @IBAction func v2Action(_ sender: Any) {
-    let vc2 = MultiPageCanvasViewController()
+//    let vc2 = MultiPageCanvasViewController()
+    let vc2 = CustomViewController()
     self.navigationController?.pushViewController(vc2, animated: true)
   }
 }
