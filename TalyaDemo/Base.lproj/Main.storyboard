@@ -22,7 +22,7 @@
                                 <state key="normal" title="Button"/>
                                 <buttonConfiguration key="configuration" style="plain" title="talya viewer"/>
                                 <connections>
-                                    <action selector="v2Action:" destination="BYZ-38-t0r" eventType="touchUpInside" id="1ps-8J-Rd2"/>
+                                    <segue destination="xhm-GA-ave" kind="show" id="g9c-mZ-9XX"/>
                                 </connections>
                             </button>
                         </subviews>
@@ -53,7 +53,38 @@
                 </navigationController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="WL4-L0-sRL" userLabel="First Responder" customClass="UIResponder" sceneMemberID="firstResponder"/>
             </objects>
-            <point key="canvasLocation" x="-960" y="-54"/>
+            <point key="canvasLocation" x="-976" y="4"/>
+        </scene>
+        <!--Viewer View Controller-->
+        <scene sceneID="aZC-Xe-iC6">
+            <objects>
+                <viewController id="xhm-GA-ave" customClass="PDFViewerViewController" customModule="TalyaDemo" customModuleProvider="target" sceneMemberID="viewController">
+                    <view key="view" contentMode="scaleToFill" id="XzW-ud-yuf">
+                        <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <subviews>
+                            <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="AVX-fq-pyu" customClass="DrawablePDFView" customModule="TalyaDemo" customModuleProvider="target">
+                                <rect key="frame" x="0.0" y="44" width="393" height="808"/>
+                                <color key="backgroundColor" systemColor="systemBackgroundColor"/>
+                            </view>
+                        </subviews>
+                        <viewLayoutGuide key="safeArea" id="CdY-ce-CLe"/>
+                        <color key="backgroundColor" systemColor="systemBackgroundColor"/>
+                        <constraints>
+                            <constraint firstItem="AVX-fq-pyu" firstAttribute="bottom" secondItem="CdY-ce-CLe" secondAttribute="bottom" constant="34" id="Czt-N5-LN7"/>
+                            <constraint firstItem="AVX-fq-pyu" firstAttribute="leading" secondItem="CdY-ce-CLe" secondAttribute="leading" id="NrV-um-tE4"/>
+                            <constraint firstItem="CdY-ce-CLe" firstAttribute="top" secondItem="AVX-fq-pyu" secondAttribute="top" constant="59" id="fpY-uh-jZX"/>
+                            <constraint firstItem="CdY-ce-CLe" firstAttribute="trailing" secondItem="AVX-fq-pyu" secondAttribute="trailing" id="kAp-cR-Coc"/>
+                        </constraints>
+                    </view>
+                    <navigationItem key="navigationItem" id="N3f-65-sbF"/>
+                    <connections>
+                        <outlet property="pdfView" destination="AVX-fq-pyu" id="kEt-Zo-Xd3"/>
+                    </connections>
+                </viewController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="ya0-aX-ber" userLabel="First Responder" customClass="UIResponder" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="1129.0076335877861" y="3.5211267605633805"/>
         </scene>
     </scenes>
     <resources>

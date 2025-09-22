@@ -21,7 +21,12 @@ class DataReader {
     
     func readUInt8() -> UInt8? {
         guard bytesRemaining >= 1 else { return nil }
-        let value = data[offset]
+        let value = data.withUnsafeBytes { bytes in
+            var result: UInt8 = 0
+            memcpy(&result, bytes.baseAddress!.advanced(by: offset), 1)
+            return result.littleEndian
+        }
+      
         offset += 1
         return value
     }
@@ -92,6 +97,13 @@ extension Float32 {
     var littleEndian: Float32 {
         let bits = self.bitPattern.littleEndian
         return Float32(bitPattern: bits)
+    }
+}
+
+extension Float16 {
+    var littleEndian: Float16 {
+        let bits = self.bitPattern.littleEndian
+        return Float16(bitPattern: bits)
     }
 }
 
